@@ -52,17 +52,33 @@ export class OnuClient {
   }
 
   async init() {
-    fse.readdirSync(this.onuPath)
-      .filter(file => file !== 'index.ts' && file !== 'index.js')
+    this.#walkFilesRecursive(this.onuPath, true);
+  }
+
+  #walkFilesRecursive(dir: string, initialRun: boolean = false) {
+
+    fse.readdirSync(dir, { withFileTypes: true })
+      .filter((file) => {
+        if (initialRun) {
+         return file.name !== 'index.ts' && file.name !== 'index.js'
+        }
+        return true;
+      })
       .forEach(async (file) => {
-        if (file.toLowerCase().endsWith('.ts') || file.toLowerCase().endsWith('.js')) {
-          // Removes '.js' from the property name
-          const [filename] = file.split('.')
-          const mod = await require(path.join(this.onuPath, filename))
+        if (file.isDirectory()) {
+          const newPath = path.join(dir, file.name);
+          this.#walkFilesRecursive(newPath);
+        }
+
+        if (file.name.toLowerCase().endsWith('.ts') || file.name.toLowerCase().endsWith('.js')) {
+          // Removes '.js' from the end of the file name
+          const filename = file.name.slice(0, -3);
+          const mod = await require(path.join(dir, filename))
           const task = mod.default as Task;
           this.tasks[task.slug] = task;
         }
       });
+
   }
 
   async #runTask(res: ServerResponse, slug: string | null, data: any) {
