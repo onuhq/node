@@ -10,7 +10,7 @@ describe('OnuClient', () => {
       apiKey: 'test',
     })
     await client.init()
-    expect(Object.keys(client.tasks).length).toBe(1);
+    expect(Object.keys(client.tasks).length).toBe(3);
   });
 
 
@@ -82,19 +82,18 @@ describe('OnuClient', () => {
     // @ts-ignore
     await client.handleRequest(req, res)
     expect(res.statusCode).toBe(200);
-    const metadata = Object.keys(client.tasks).map((slug) => {
-      const task: Task = client.tasks[slug];
-      return {
-        name: task.name,
-        description: task.description,
-        slug,
-        owner: task.owner,
-        input: task.input,
-      }
-    })
+
+    const task: Task = client.tasks['test-slug'];
+    const expectedResponse = {
+      name: task.name,
+      description: task.description,
+      slug: 'test-slug',
+      owner: task.owner,
+      input: task.input,
+    }
 
     expect(res.end).toBeCalledWith(JSON.stringify({
-      task: metadata[0],
+      task: expectedResponse,
       version: pkg.version,
       sdk: 'nodejs'
     }));

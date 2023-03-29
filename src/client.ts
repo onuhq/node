@@ -47,25 +47,41 @@ export class OnuClient {
     }
   }
 
-  determineIfIsExpressRequest(req: IncomingMessage | ExpressRequest): req is ExpressRequest {
+  #determineIfIsExpressRequest(req: IncomingMessage | ExpressRequest): req is ExpressRequest {
     return (req as ExpressRequest).body !== undefined;
   }
 
   async init() {
-    fse.readdirSync(this.onuPath)
-      .filter(file => file !== 'index.ts' && file !== 'index.js')
+    this.#walkFilesRecursive(this.onuPath, true);
+  }
+
+  #walkFilesRecursive(dir: string, initialRun: boolean = false) {
+
+    fse.readdirSync(dir, { withFileTypes: true })
+      .filter((file) => {
+        if (initialRun) {
+         return file.name !== 'index.ts' && file.name !== 'index.js'
+        }
+        return true;
+      })
       .forEach(async (file) => {
-        if (file.toLowerCase().endsWith('.ts') || file.toLowerCase().endsWith('.js')) {
-          // Removes '.js' from the property name
-          const [filename] = file.split('.')
-          const mod = await require(path.join(this.onuPath, filename))
+        if (file.isDirectory()) {
+          const newPath = path.join(dir, file.name);
+          this.#walkFilesRecursive(newPath);
+        }
+
+        if (file.name.toLowerCase().endsWith('.ts') || file.name.toLowerCase().endsWith('.js')) {
+          // Removes '.js' from the end of the file name
+          const filename = file.name.slice(0, -3);
+          const mod = await require(path.join(dir, filename))
           const task = mod.default as Task;
           this.tasks[task.slug] = task;
         }
       });
+
   }
 
-  async runTask(res: ServerResponse, slug: string | null, data: any) {
+  async #runTask(res: ServerResponse, slug: string | null, data: any) {
     if (!slug) {
       res.statusCode = HttpStatusCode.BadRequest;
       res.end(JSON.stringify({ error: 'missing_task_slug', ...this.#baseApiResponse }));
@@ -190,11 +206,11 @@ export class OnuClient {
         case 'run':
           // if the request is an ExpressRequest, we may need to read the body
           // differently than if it is an IncomingMessage
-          if (this.determineIfIsExpressRequest(req)) {
+          if (this.#determineIfIsExpressRequest(req)) {
             // read data from the request body
             const data = req.body;
             const slug = url.searchParams.get('slug');
-            await this.runTask(res, slug, data);
+            await this.#runTask(res, slug, data);
             return;
           }
           // read data from the request body
@@ -205,7 +221,7 @@ export class OnuClient {
           req.on('end', async () => {
             const data = JSON.parse(body);
             const slug = url.searchParams.get('slug');
-            await this.runTask(res, slug, data);
+            await this.#runTask(res, slug, data);
           });
           break;
         default:
