@@ -65,7 +65,7 @@ export class OnuClient {
       });
   }
 
-  async runTask(res: ServerResponse, slug: string | null, data: any) {
+  async #runTask(res: ServerResponse, slug: string | null, data: any) {
     if (!slug) {
       res.statusCode = HttpStatusCode.BadRequest;
       res.end(JSON.stringify({ error: 'missing_task_slug', ...this.#baseApiResponse }));
@@ -194,7 +194,7 @@ export class OnuClient {
             // read data from the request body
             const data = req.body;
             const slug = url.searchParams.get('slug');
-            await this.runTask(res, slug, data);
+            await this.#runTask(res, slug, data);
             return;
           }
           // read data from the request body
@@ -205,7 +205,7 @@ export class OnuClient {
           req.on('end', async () => {
             const data = JSON.parse(body);
             const slug = url.searchParams.get('slug');
-            await this.runTask(res, slug, data);
+            await this.#runTask(res, slug, data);
           });
           break;
         default:
