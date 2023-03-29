@@ -47,7 +47,7 @@ export class OnuClient {
     }
   }
 
-  determineIfIsExpressRequest(req: IncomingMessage | ExpressRequest): req is ExpressRequest {
+  #determineIfIsExpressRequest(req: IncomingMessage | ExpressRequest): req is ExpressRequest {
     return (req as ExpressRequest).body !== undefined;
   }
 
@@ -190,7 +190,7 @@ export class OnuClient {
         case 'run':
           // if the request is an ExpressRequest, we may need to read the body
           // differently than if it is an IncomingMessage
-          if (this.determineIfIsExpressRequest(req)) {
+          if (this.#determineIfIsExpressRequest(req)) {
             // read data from the request body
             const data = req.body;
             const slug = url.searchParams.get('slug');
