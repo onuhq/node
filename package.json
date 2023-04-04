@@ -1,6 +1,6 @@
 {
   "name": "@onuhq/node",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "",
   "main": "dist/index.js",
   "module": "dist/index.es.js",
@@ -21,7 +21,9 @@
     "build": "npm run build:types && npm run build:js",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["onu"],
+  "keywords": [
+    "onu"
+  ],
   "author": "Onu",
   "license": "MIT",
   "devDependencies": {
