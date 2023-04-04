@@ -4,12 +4,12 @@ export interface RunContext {
 
 export interface ClientOptions {
   /**
-   * Path from the root of the project to the folder containing the tasks. This will usually be __dirname + '/tasks'.
+   * Path from the root of the project to the folder containing the tasks. This will usually be `__dirname`.
    */
   onuPath: string;
   apiKey: string;
   /**
-   * If running Onu using .initializeHttpServer(), this is the port that the server will run on. Defaults to 3000.
+   * If running Onu using .initializeHttpServer(), this is the port that the server will run on. Defaults to 8080.
    */
   serverPort?: number;
   /**
@@ -20,18 +20,24 @@ export interface ClientOptions {
 
 export interface Field {
   name: string;
-  type: "string" | "text" | "number" | "boolean" | "select" | "csv";
+  type: "string" | "text" | "number" | "boolean" | "select" | "csv" | "email";
   description?: string;
   options?: Array<string>;
   required?: boolean;
 }
 export type IndexedField = Record<string, Field>
 
+export interface ValidationResponse {
+  valid: boolean;
+  errors?: Array<string>;
+}
+
 export interface TaskOptions {
   name: string;
   description?: string;
   slug: string;
   owner?: string;
-  run: (input: any, ctx: RunContext) => void;
+  run: (input: any, ctx: RunContext) => Promise<any> | any;
+  validate?: (input: any, ctx: RunContext) => Promise<boolean | ValidationResponse> | boolean | ValidationResponse;
   input?: IndexedField;
 }

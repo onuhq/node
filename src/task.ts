@@ -1,11 +1,12 @@
-import { IndexedField, RunContext, TaskOptions } from "./types";
+import { IndexedField, RunContext, TaskOptions, ValidationResponse } from "./types";
 
 export class Task {
   name: string;
   description: string;
   slug: string;
   owner?: string;
-  run: (input: any, ctx: RunContext) => void;
+  run: (input: any, ctx: RunContext) => Promise<any> | any;
+  validate?: (input: any, ctx: RunContext) => Promise<boolean | ValidationResponse> | boolean | ValidationResponse;
   input: IndexedField;
 
   constructor(config: TaskOptions) {
@@ -15,5 +16,6 @@ export class Task {
     this.owner = config.owner;
     this.input = config.input || {};
     this.run = config.run;
+    this.validate = config.validate;
   }
 }

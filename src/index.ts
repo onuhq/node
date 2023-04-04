@@ -10,5 +10,6 @@ export {
   RunContext,
   TaskOptions,
   ClientOptions,
+  ValidationResponse,
 } from './types';
 
