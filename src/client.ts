@@ -1,8 +1,8 @@
-import { IncomingMessage, ServerResponse, createServer } from "http";
-import {Request as ExpressRequest, Response as ExpressResponse} from 'express';
+import { IncomingMessage, Server, ServerResponse, createServer } from "http";
+import { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 import fse from 'fs-extra';
 import path from 'path';
-import { ClientOptions, RunContext } from "./types";
+import { ClientOptions, RunContext, ValidationResponse } from "./types";
 import { Task } from "./task";
 const pkg = require('../package.json');
 
@@ -18,12 +18,18 @@ const HttpStatusCode = {
   Unauthorized: 401,
   NotFound: 404,
   BadRequest: 400,
+  Forbidden: 403,
+  UnprocessableEntity: 422,
 };
+
+interface Tasks {
+  [key: string]: Task;
+}
 
 
 export class OnuClient {
   onuPath: string;
-  tasks: any = {};
+  tasks: Tasks = {};
   #port: number;
   #serverPath: string;
   #sdkVersion: string = pkg.version;
@@ -36,11 +42,32 @@ export class OnuClient {
   #context: RunContext = {
     executionId: '',
   }
+  app: Server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    if (!req.url) {
+      res.statusCode = HttpStatusCode.NotFound;
+      res.end();
+      return;
+    }
+    const url = new URL(req.url, `http://${req.headers.host}`);
+
+    switch (url.pathname) {
+      case '/healthcheck':
+        this.handleRequest(req, res);
+        break;
+      case `/${this.#serverPath}`:
+        this.handleRequest(req, res);
+        break;
+      default:
+        res.statusCode = HttpStatusCode.Forbidden;
+        res.end();
+        break;
+    }
+  });
 
   constructor(config: ClientOptions) {
     this.onuPath = config.onuPath;
     this.#apiKey = config.apiKey;
-    this.#port = config.serverPort || 3000;
+    this.#port = config.serverPort || 8080;
     this.#serverPath = config.serverPath || '';
     if (this.#serverPath.startsWith('/')) {
       this.#serverPath = this.#serverPath.slice(1);
@@ -56,29 +83,36 @@ export class OnuClient {
   }
 
   #walkFilesRecursive(dir: string, initialRun: boolean = false) {
+    try {
+      fse.readdirSync(dir, { withFileTypes: true })
+        .filter((file) => {
+          if (initialRun) {
+            return file.name !== 'index.ts' && file.name !== 'index.js'
+          }
+          return true;
+        })
+        .forEach(async (file) => {
+          if (file.isDirectory()) {
+            const newPath = path.join(dir, file.name);
+            this.#walkFilesRecursive(newPath);
+          }
 
-    fse.readdirSync(dir, { withFileTypes: true })
-      .filter((file) => {
-        if (initialRun) {
-         return file.name !== 'index.ts' && file.name !== 'index.js'
-        }
-        return true;
-      })
-      .forEach(async (file) => {
-        if (file.isDirectory()) {
-          const newPath = path.join(dir, file.name);
-          this.#walkFilesRecursive(newPath);
-        }
+          if (file.name.toLowerCase().endsWith('.ts') || file.name.toLowerCase().endsWith('.js')) {
+            // Removes '.js' from the end of the file name
+            const filename = file.name.slice(0, -3);
+            const mod = await require(path.join(dir, filename))
+            const task = mod.default as Task;
+            this.tasks[task.slug] = task;
+          }
+        });
+    } catch (e: any) {
+      throw new Error(`Error loading tasks: ${e.message}`);
+    }
 
-        if (file.name.toLowerCase().endsWith('.ts') || file.name.toLowerCase().endsWith('.js')) {
-          // Removes '.js' from the end of the file name
-          const filename = file.name.slice(0, -3);
-          const mod = await require(path.join(dir, filename))
-          const task = mod.default as Task;
-          this.tasks[task.slug] = task;
-        }
-      });
+  }
 
+  #determineIfIsValidationResponse(response: boolean | ValidationResponse): response is ValidationResponse {
+    return (response as ValidationResponse).valid !== undefined;
   }
 
   async #runTask(res: ServerResponse, slug: string | null, data: any) {
@@ -108,8 +142,27 @@ export class OnuClient {
     const context: RunContext = {
       executionId: executionId,
     }
+    const validationResponse = task.validate ? await task.validate(input || {}, context) : true;
+    if (this.#determineIfIsValidationResponse(validationResponse)) {
+      const { valid, errors } = validationResponse;
+      if (!valid) {
+        res.statusCode = HttpStatusCode.UnprocessableEntity;
+        res.end(JSON.stringify({ error: 'invalid_input', errors: errors || [], ...this.#baseApiResponse }));
+        return;
+      }
+      // ensure that the validation response is a boolean
+    } else if (typeof validationResponse === 'boolean') {
+      if (!validationResponse) {
+        res.statusCode = HttpStatusCode.UnprocessableEntity;
+        res.end(JSON.stringify({ error: 'invalid_input', ...this.#baseApiResponse }));
+        return;
+      }
+    } else {
+      res.statusCode = HttpStatusCode.UnprocessableEntity;
+      res.end(JSON.stringify({ error: 'invalid_validation', errors: ['Received unexpected response from validation function'], ...this.#baseApiResponse }));
+    }
 
-    
+
     // run the task
     try {
       const resp = await task.run(input || {}, context);
@@ -119,7 +172,7 @@ export class OnuClient {
       res.statusCode = HttpStatusCode.BadRequest;
       res.end(JSON.stringify({ error: error.message, ...this.#baseApiResponse }));
     }
-    
+
     return
   }
 
@@ -129,13 +182,26 @@ export class OnuClient {
       await this.init();
     }
 
+    if (!req.url) {
+      res.statusCode = HttpStatusCode.Unauthorized;
+      res.end(JSON.stringify({ response: 'Unauthorized' }));
+      return;
+    }
+
+    const url = new URL(req.url, `http://${req.headers.host}`);
+
+    if (url.pathname === '/healthcheck') {
+      res.statusCode = HttpStatusCode.Ok;
+      res.end(JSON.stringify({ response: 'ok' }));
+      return;
+    }
+
     if (!req.headers['onu-signature'] || !req.url) {
       // Only allow access from cloud tasks
       res.statusCode = HttpStatusCode.Unauthorized;
       res.end(JSON.stringify({ response: 'Unauthorized' }));
       return;
     }
-    const url = new URL(req.url, `http://${req.headers.host}`);
     const action = url.searchParams.get('action');
     if (!action) {
       res.statusCode = HttpStatusCode.NotFound;
@@ -237,28 +303,8 @@ export class OnuClient {
   }
 
   initializeHttpServer() {
-    this.init().then(() => {
-      const server = createServer((req: IncomingMessage, res: ServerResponse) => {
-        if (!req.url) {
-          res.statusCode = HttpStatusCode.NotFound;
-          res.end();
-          return;
-        }
-        const url = new URL(req.url, `http://${req.headers.host}`);
-
-        switch (url.pathname) {
-          case `/${this.#serverPath}`:
-            this.handleRequest(req, res);
-            break;
-          default:
-            res.statusCode = HttpStatusCode.NotFound;
-            res.end();
-            break;
-        }
-      });
-      server.listen(this.#port, () => {
-        console.log(`⚡️[onu]: Onu server is running at http://localhost:${this.#port}`);
-      });
+    this.app.listen(this.#port, () => {
+      console.log(`⚡️[onu]: Onu server is running at http://localhost:${this.#port}`);
     });
   }
 }
