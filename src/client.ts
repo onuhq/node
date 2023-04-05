@@ -42,13 +42,26 @@ export class OnuClient {
   #context: RunContext = {
     executionId: '',
   }
-  app: Server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+  #authenticator: (req: IncomingMessage | ExpressRequest) => Promise<boolean> | boolean = (req: IncomingMessage | ExpressRequest) => {
+    return true
+  }
+
+  #app: Server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+
     if (!req.url) {
-      res.statusCode = HttpStatusCode.NotFound;
+      res.statusCode = HttpStatusCode.Forbidden;
       res.end();
       return;
     }
+
+    const authenticated = await this.#authenticator(req);
+
     const url = new URL(req.url, `http://${req.headers.host}`);
+    if (!authenticated && url.pathname !== '/healthcheck') {
+      res.statusCode = HttpStatusCode.Unauthorized;
+      res.end();
+      return;
+    }
 
     switch (url.pathname) {
       case '/healthcheck':
@@ -68,6 +81,7 @@ export class OnuClient {
     this.onuPath = config.onuPath;
     this.#apiKey = config.apiKey;
     this.#port = config.serverPort || 8080;
+    this.#authenticator = config.authenticator || this.#authenticator;
     this.#serverPath = config.serverPath || '';
     if (this.#serverPath.startsWith('/')) {
       this.#serverPath = this.#serverPath.slice(1);
@@ -192,7 +206,7 @@ export class OnuClient {
 
     if (url.pathname === '/healthcheck') {
       res.statusCode = HttpStatusCode.Ok;
-      res.end(JSON.stringify({ response: 'ok' }));
+      res.end("200 OK");
       return;
     }
 
@@ -303,7 +317,7 @@ export class OnuClient {
   }
 
   initializeHttpServer() {
-    this.app.listen(this.#port, () => {
+    this.#app.listen(this.#port, () => {
       console.log(`⚡️[onu]: Onu server is running at http://localhost:${this.#port}`);
     });
   }
