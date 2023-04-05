@@ -20,7 +20,7 @@ export interface ClientOptions {
    */
   serverPath?: string;
   /**
-  * If running Onu using .initializeHttpServer(), this function is called before each request to validate incoming traffic with custom authentication logic, i,e. checking and validation Bearer tokens.
+  * If running Onu using .initializeHttpServer(), this function is called before each request to validate incoming traffic with custom authentication logic, i,e. checking and validating Bearer tokens.
   * If the function returns false, the request is rejected. Defaults to a function that always returns true.
   */
   authenticator?: (req: IncomingMessage | ExpressRequest) => Promise<boolean> | boolean;
