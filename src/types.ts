@@ -1,3 +1,6 @@
+import { Request as ExpressRequest } from "express";
+import { IncomingMessage } from "http";
+
 export interface RunContext {
   executionId: string;
 }
@@ -16,6 +19,11 @@ export interface ClientOptions {
    * If running Onu using .initializeHttpServer(), this is the endpoint that the server will run on, e.g. '/api/onuEntrypoint'. Defaults to '/'.
    */
   serverPath?: string;
+  /**
+  * If running Onu using .initializeHttpServer(), this function is called before each request to validate incoming traffic with custom authentication logic, i,e. checking and validation Bearer tokens.
+  * If the function returns false, the request is rejected. Defaults to a function that always returns true.
+  */
+  authenticator?: (req: IncomingMessage | ExpressRequest) => Promise<boolean> | boolean;
 }
 
 export interface Field {
