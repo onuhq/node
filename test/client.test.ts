@@ -235,9 +235,7 @@ describe('OnuClient', () => {
     // @ts-ignore
     expect(res.statusCode).toBe(200);
 
-    expect(res.end).toBeCalledWith(JSON.stringify({
-      response: 'ok',
-    }));
+    expect(res.end).toBeCalledWith("200 OK");
   });
 
 

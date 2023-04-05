@@ -206,7 +206,7 @@ export class OnuClient {
 
     if (url.pathname === '/healthcheck') {
       res.statusCode = HttpStatusCode.Ok;
-      res.end(JSON.stringify({ response: 'ok' }));
+      res.end("200 OK");
       return;
     }
 
