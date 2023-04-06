@@ -4,6 +4,7 @@ import fse from 'fs-extra';
 import path from 'path';
 import { ClientOptions, RunContext, ValidationResponse } from "./types";
 import { Task } from "./task";
+import serverless from 'serverless-http';
 const pkg = require('../package.json');
 
 const ACTIONS = {
@@ -42,6 +43,7 @@ export class OnuClient {
   #context: RunContext = {
     executionId: '',
   }
+  #useAuth: boolean = false;
   #authenticator: (req: IncomingMessage | ExpressRequest) => Promise<boolean> | boolean = (req: IncomingMessage | ExpressRequest) => {
     return true
   }
@@ -54,7 +56,7 @@ export class OnuClient {
       return;
     }
 
-    const authenticated = await this.#authenticator(req);
+    const authenticated = this.#useAuth ? await this.#authenticator(req) : true;
 
     const url = new URL(req.url, `http://${req.headers.host}`);
     if (!authenticated && url.pathname !== '/healthcheck') {
@@ -317,8 +319,14 @@ export class OnuClient {
   }
 
   initializeHttpServer() {
+    this.#useAuth = true;
     this.#app.listen(this.#port, () => {
       console.log(`⚡️[onu]: Onu server is running at http://localhost:${this.#port}`);
     });
+  }
+
+  getHandler() {
+    // @ts-ignore
+    return serverless(this.#app);
   }
 }

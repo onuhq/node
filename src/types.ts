@@ -12,16 +12,16 @@ export interface ClientOptions {
   onuPath: string;
   apiKey: string;
   /**
-   * If running Onu using .initializeHttpServer(), this is the port that the server will run on. Defaults to 8080.
+   * If running a self-hosted Onu instance using .initializeHttpServer(), this is the port that the server will run on. Defaults to 8080.
    */
   serverPort?: number;
   /**
-   * If running Onu using .initializeHttpServer(), this is the endpoint that the server will run on, e.g. '/api/onuEntrypoint'. Defaults to '/'.
+   * If running a self-hosted Onu instance using .initializeHttpServer(), this is the endpoint that the server will run on, e.g. '/api/onuEntrypoint'. Defaults to '/'.
    */
   serverPath?: string;
   /**
-  * If running Onu using .initializeHttpServer(), this function is called before each request to validate incoming traffic with custom authentication logic, i,e. checking and validating Bearer tokens.
-  * If the function returns false, the request is rejected. Defaults to a function that always returns true.
+  * If running a self-hosted Onu instance using .initializeHttpServer(), this function is called before each request to validate incoming traffic with custom authentication logic, i,e. checking and validating Bearer tokens.
+  * If the function returns false, the request is rejected. Defaults to a function that always returns true, and is only called for self hosted Onu instances running via .initializeHttpServer().
   */
   authenticator?: (req: IncomingMessage | ExpressRequest) => Promise<boolean> | boolean;
 }
