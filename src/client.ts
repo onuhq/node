@@ -103,7 +103,7 @@ export class OnuClient {
       const files = await fse.readdir(dir, { withFileTypes: true });
       const filteredFiles = files.filter((file) => {
         if (initialRun) {
-          return file.name !== 'index.ts' && file.name !== 'index.js'
+          return file.name !== 'index.ts' && file.name !== 'index.js' && file.name !== '_onuHandler.ts' && file.name !== '_onuHandler.js';
         }
         return true;
       });
@@ -119,6 +119,11 @@ export class OnuClient {
           const filename = file.name.slice(0, -3);
           const mod = await require(path.join(dir, filename))
           const task = mod.default as Task;
+          if (!task) {
+            // log an error and skip it
+            console.warn(`No default Task export found in ${path.join(dir, filename)}`);
+            continue;
+          }
           this.tasks[task.slug] = task;
         }
       }
