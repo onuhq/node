@@ -95,32 +95,33 @@ export class OnuClient {
   }
 
   async init() {
-    this.#walkFilesRecursive(this.onuPath, true);
+    await this.#walkFilesRecursive(this.onuPath, true);
   }
 
-  #walkFilesRecursive(dir: string, initialRun: boolean = false) {
+  async #walkFilesRecursive(dir: string, initialRun: boolean = false) {
     try {
-      fse.readdirSync(dir, { withFileTypes: true })
-        .filter((file) => {
-          if (initialRun) {
-            return file.name !== 'index.ts' && file.name !== 'index.js'
-          }
-          return true;
-        })
-        .forEach(async (file) => {
-          if (file.isDirectory()) {
-            const newPath = path.join(dir, file.name);
-            this.#walkFilesRecursive(newPath);
-          }
+      const files = await fse.readdir(dir, { withFileTypes: true });
+      const filteredFiles = files.filter((file) => {
+        if (initialRun) {
+          return file.name !== 'index.ts' && file.name !== 'index.js'
+        }
+        return true;
+      });
 
-          if (file.name.toLowerCase().endsWith('.ts') || file.name.toLowerCase().endsWith('.js')) {
-            // Removes '.js' from the end of the file name
-            const filename = file.name.slice(0, -3);
-            const mod = await require(path.join(dir, filename))
-            const task = mod.default as Task;
-            this.tasks[task.slug] = task;
-          }
-        });
+      for (const file of filteredFiles) {
+        if (file.isDirectory()) {
+          const newPath = path.join(dir, file.name);
+          await this.#walkFilesRecursive(newPath);
+        }
+
+        if (file.name.toLowerCase().endsWith('.ts') || file.name.toLowerCase().endsWith('.js')) {
+          // Removes '.js' from the end of the file name
+          const filename = file.name.slice(0, -3);
+          const mod = await require(path.join(dir, filename))
+          const task = mod.default as Task;
+          this.tasks[task.slug] = task;
+        }
+      }
     } catch (e: any) {
       throw new Error(`Error loading tasks: ${e.message}`);
     }
