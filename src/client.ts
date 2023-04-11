@@ -4,7 +4,6 @@ import fse from 'fs-extra';
 import path from 'path';
 import { ClientOptions, RunContext, ValidationResponse } from "./types";
 import { Task } from "./task";
-import serverless from 'serverless-http';
 const pkg = require('../package.json');
 
 const ACTIONS = {
@@ -329,10 +328,5 @@ export class OnuClient {
     this.#app.listen(this.#port, () => {
       console.log(`⚡️[onu]: Onu server is running at http://localhost:${this.#port}`);
     });
-  }
-
-  getHandler() {
-    // @ts-ignore
-    return serverless(this.#app);
   }
 }

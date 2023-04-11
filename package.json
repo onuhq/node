@@ -1,6 +1,6 @@
 {
   "name": "@onuhq/node",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "",
   "main": "dist/index.js",
   "module": "dist/index.es.js",
@@ -45,7 +45,6 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
-    "fs-extra": "^11.1.1",
-    "serverless-http": "^3.2.0"
+    "fs-extra": "^11.1.1"
   }
 }
