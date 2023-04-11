@@ -47,7 +47,7 @@ export class OnuClient {
     return true
   }
 
-  #app: Server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+  app: Server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
 
     if (!req.url) {
       res.statusCode = HttpStatusCode.Forbidden;
@@ -325,7 +325,7 @@ export class OnuClient {
 
   initializeHttpServer() {
     this.#useAuth = true;
-    this.#app.listen(this.#port, () => {
+    this.app.listen(this.#port, () => {
       console.log(`⚡️[onu]: Onu server is running at http://localhost:${this.#port}`);
     });
   }
