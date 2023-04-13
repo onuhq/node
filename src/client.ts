@@ -136,6 +136,10 @@ export class OnuClient {
     return (response as ValidationResponse).valid !== undefined;
   }
 
+  #resetEnv() {
+    process.env.ONU_INTERNAL__EXECUTION_ID = "";
+  }
+
   async #runTask(res: ServerResponse, slug: string | null, data: any) {
     if (!slug) {
       res.statusCode = HttpStatusCode.BadRequest;
@@ -163,10 +167,15 @@ export class OnuClient {
     const context: RunContext = {
       executionId: executionId,
     }
+    // Set the env for this task run
+    process.env.ONU_INTERNAL__API_KEY = this.#apiKey || "";
+    process.env.ONU_INTERNAL__DEBUG_MODE = "false"
+    process.env.ONU_INTERNAL__EXECUTION_ID = executionId;
     const validationResponse = task.validate ? await task.validate(input || {}, context) : true;
     if (this.#determineIfIsValidationResponse(validationResponse)) {
       const { valid, errors } = validationResponse;
       if (!valid) {
+        this.#resetEnv();
         res.statusCode = HttpStatusCode.UnprocessableEntity;
         res.end(JSON.stringify({ error: 'invalid_input', errors: errors || [], ...this.#baseApiResponse }));
         return;
@@ -174,11 +183,13 @@ export class OnuClient {
       // ensure that the validation response is a boolean
     } else if (typeof validationResponse === 'boolean') {
       if (!validationResponse) {
+        this.#resetEnv();
         res.statusCode = HttpStatusCode.UnprocessableEntity;
         res.end(JSON.stringify({ error: 'invalid_input', ...this.#baseApiResponse }));
         return;
       }
     } else {
+      this.#resetEnv();
       res.statusCode = HttpStatusCode.UnprocessableEntity;
       res.end(JSON.stringify({ error: 'invalid_validation', errors: ['Received unexpected response from validation function'], ...this.#baseApiResponse }));
     }
@@ -187,13 +198,15 @@ export class OnuClient {
     // run the task
     try {
       const resp = await task.run(input || {}, context);
+      this.#resetEnv();
       res.statusCode = HttpStatusCode.Ok;
       res.end(JSON.stringify({ response: resp, ...this.#baseApiResponse }));
     } catch (error: any) {
+      this.#resetEnv();
       res.statusCode = HttpStatusCode.BadRequest;
       res.end(JSON.stringify({ error: error.message, ...this.#baseApiResponse }));
     }
-
+    this.#resetEnv();
     return
   }
 
