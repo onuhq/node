@@ -118,7 +118,7 @@ export class OnuClient {
           const filename = file.name.slice(0, -3);
           // In debug mode only - if the path already exists in the require cache, delete it
           if (require.cache[require.resolve(path.join(dir, filename))] && process.env.ONU_INTERNAL__DEBUG_MODE === 'true') {
-            delete require.cache[require.resolve(path.join(dir, `${filename}`))];
+            delete require.cache[require.resolve(path.join(dir, filename))];
           }
           const mod = await require(path.join(dir, filename))
           const task = mod.default as Task;
